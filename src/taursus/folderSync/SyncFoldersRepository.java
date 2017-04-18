@@ -1,20 +1,27 @@
 package taursus.folderSync;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 public class SyncFoldersRepository implements ISyncFoldersRepository {
-    
+    ISyncFoldersRepositoryStorageStrategy storageStrategy = new SyncFoldersRepositoryFileStorageStrategy();
     List<ISyncFolder> syncFolders = new ArrayList<ISyncFolder>();
-    protected String pathToRepositoryFile = "./.syncFolders";
     
-    public SyncFoldersRepository() {
-        this.syncFolders = readFromRepositoryFile();
+
+    protected static class SyncFoldersRepositoryLoader {
+        private static final SyncFoldersRepository INSTANCE = new SyncFoldersRepository();
+    }
+
+    protected SyncFoldersRepository() {
+        if (SyncFoldersRepositoryLoader.INSTANCE != null) {
+            throw new IllegalStateException("Already instantiated");
+        }
+        
+        this.syncFolders = this.storageStrategy.retrive();
+    }
+
+    public static SyncFoldersRepository getInstance() {
+        return SyncFoldersRepositoryLoader.INSTANCE;
     }
     
     @Override
@@ -51,36 +58,6 @@ public class SyncFoldersRepository implements ISyncFoldersRepository {
         }
         
         this.syncFolders.add(folder);
-        saveToRepositoryFile();
-    }
-    
-    protected List<ISyncFolder> readFromRepositoryFile() {
-        try {
-            FileInputStream fileIn = new FileInputStream(this.pathToRepositoryFile);
-            ObjectInputStream in = new ObjectInputStream(fileIn);
-            List<ISyncFolder> folders = (List<ISyncFolder>) in.readObject();
-            
-            in.close();
-            fileIn.close();
-            
-            return folders;
-         } catch(IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-            return new ArrayList<ISyncFolder>();
-         }
-    }
-    
-    protected void saveToRepositoryFile() {
-        try {
-            FileOutputStream fileOut = new FileOutputStream(this.pathToRepositoryFile);
-            ObjectOutputStream out = new ObjectOutputStream(fileOut);
-            
-            out.writeObject(this.syncFolders);
-            
-            out.close();
-            fileOut.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        this.storageStrategy.save(this.syncFolders);
     }
 }
